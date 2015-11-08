@@ -8,53 +8,52 @@ import android.os.IBinder;
 import android.widget.TextView;
 
 public class TCPService extends Service {
-	RunTCP runtcp;
-	
-	@Override
-	public IBinder onBind(Intent intent) {
-		// TODO Auto-generated method stub
-		return null;
-	}
+    RunTCP runtcp;
 
-	@Override
-	public void onCreate() {
-		System.out.println("service created");
-		//MainActivity.ShowMsg("service created");
-		super.onCreate();
-	}
+    @Override
+    public IBinder onBind(Intent intent) {
+        // TODO Auto-generated method stub
+        return null;
+    }
 
-	@Override
-	public void onDestroy() {
-		System.out.println("service destroyed");
-		MainActivity.ShowMsg("service destroyed");
-		try {
-			runtcp.DestroyTCP();
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		super.onDestroy();
-	}
+    @Override
+    public void onCreate() {
+        System.out.println("service created");
+        //MainActivity.ShowMsg("service created");
+        super.onCreate();
+    }
 
-	@Override
-	public void onStart(Intent intent, int startid) {
-		System.out.println("Starting service ......");
-		MainActivity.ShowMsg("Starting service ......");
-		runtcp = new RunTCP();
-		if(runtcp.ready){
-			try {
-				runtcp.OpenFile();
-			} catch (IOException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-			runtcp.start();
-		}
-		else{
-			System.out.println("failed to start");
-			MainActivity.ShowMsg("failed to start");
-		}
-	}
+    @Override
+    public void onDestroy() {
+        System.out.println("service destroyed");
+        MainActivity.ShowMsg("service destroyed");
+        try {
+            runtcp.DestroyTCP();
+        } catch (IOException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+        super.onDestroy();
+    }
+
+    @Override
+    public void onStart(Intent intent, int startid) {
+        System.out.println("Starting service ......");
+        MainActivity.ShowMsg("Starting service ......");
+        runtcp = new RunTCP();
+        if (runtcp.ready) {
+            try {
+                runtcp.OpenFile();
+            } catch (IOException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            }
+            runtcp.start();
+        } else {
+            System.out.println("failed to start");
+            MainActivity.ShowMsg("failed to start");
+        }
+    }
 }
 /*
 5.MainActivity
@@ -69,7 +68,7 @@ super.onCreate(savedInstanceState);
 setContentView(R.layout.main);
 
 /*
-* TextView tv = (TextView)findViewById(R.id.tvTemp); tv.setText("²âÊÔ");
+* TextView tv = (TextView)findViewById(R.id.tvTemp); tv.setText("ï¿½ï¿½ï¿½ï¿½");
 */
 /*
 buttonStart = (Button) findViewById(R.id.btnStart);
