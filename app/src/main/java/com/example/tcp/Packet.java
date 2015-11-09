@@ -13,6 +13,9 @@ public class Packet {
 
     //extract information from tcpdump's output.(split the string).
     public void ReadPacket(String line) {
+        System.out.println("Packet line: \"" + line + "\"");
+        //"20:01:51.296732 IP (tos 0x0, ttl 64, id 46782, offset 0, flags [DF], proto TCP (6), length 60)"
+        //"    192.168.0.17.58485 > 216.58.210.45.443: Flags [S], cksum 0x6b50 (incorrect -> 0x97a8), seq 4002566851, win 14600, options [mss 1460,sackOK,TS val 2811005 ecr 0,nop,wscale 6], length 0"
         Time = line.split(" ")[0];
         String temp = line.replace(':', ' ');
         String temp2 = temp.replace(')', ' ');
@@ -72,6 +75,8 @@ public class Packet {
     //return time represented by second
     public int GetTimeSec() {
         String t[] = Time.replace('.', ':').split(":");
+        System.out.print("adsfasdf Time::");
+        System.out.println("\"" + Time + "\"");
         return Integer.parseInt(t[0]) * 3600 + Integer.parseInt(t[1]) * 60 + Integer.parseInt(t[2]);
     }
 }

@@ -101,8 +101,7 @@ public class HashTable {
         //inf = newpacket.SrcIP+newpacket.SrcPort+newpacket.DestIP + newpacket.DestPort + new.protocol;
 
         if (Port_PID.containsKey(inf)) {
-            String Name_PID = Port_PID.get(inf);
-            return Name_PID;
+            return Port_PID.get(inf);
         } else {
             String packetTime = newpacket.Time.replace('.', ':');
             String ts[] = packetTime.split(":");
@@ -180,15 +179,13 @@ public class HashTable {
     public void CheckTable(int Time) {
         Set<String> key = Port_PID.keySet();
         Set<String> r = new HashSet<String>();
-        for (Iterator<String> it = key.iterator(); it.hasNext(); ) {
-            String k = it.next();
+        for (String k : key) {
             if (Time - Port_Time.get(k) > 30) {
                 r.add(k);
             }
         }
 
-        for (Iterator<String> it = r.iterator(); it.hasNext(); ) {
-            String k = it.next();
+        for (String k : r) {
             Port_PID.remove(k);
             Port_Time.remove(k);
         }

@@ -1,22 +1,10 @@
 package com.example.tcp;
 
-//import com.eoeandroid.layout.ActivityFrameLayout;
-//import com.eoeandroid.layout.ActivityMain;
-
-//import com.eoeandroid.layout.R;
-
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.BufferedReader;
-import java.lang.Thread;
-
 import android.app.Activity;
 import android.content.Intent;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.util.Log;
-import android.view.Menu;
-import android.view.MenuItem;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.Button;
@@ -101,8 +89,8 @@ public class MainActivity extends Activity {
     //show massage on log text box
     public static void ShowMsg(String msg) {
         //TextView logmsg = (TextView) findViewById(R.id.editText1);
-        CharSequence oldmsg = logmsg.getText();
-        logmsg.setText(oldmsg + msg + "\n");
+//        CharSequence oldmsg = logmsg.getText();
+//        logmsg.setText(oldmsg + msg + "\n");
     }
 
     //email sending function

@@ -9,15 +9,9 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.net.InetAddress;
-import java.net.NetworkInterface;
-import java.net.SocketException;
-import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Calendar;
 
-import android.util.Log;
 import android.widget.Button;
 
 public class RunTCP extends Thread {
@@ -56,9 +50,7 @@ public class RunTCP extends Thread {
             if (permission) {
                 System.out.println("tcpdump got permission");
                 MainActivity.ShowMsg("tcpdump got permission");
-                if (myhash.ready) {
-                    ready = true;
-                } else ready = false;
+                ready = myhash.ready;
             } else {
                 System.out.println("tcpdump cannot get permission");
                 MainActivity.ShowMsg("tcpdump cannot get permission");
@@ -132,7 +124,7 @@ public class RunTCP extends Thread {
             //MainActivity.ShowMsg("Starting tcpdump...");
 
             //runtcpdump
-            os.writeBytes("/data/local/tcpdump -v -n -s 0 tcp\n");
+            os.writeBytes("/data/local/tcpdump -v -n tcp\n");
             String line;
 
             //discard first several packets
@@ -168,7 +160,9 @@ public class RunTCP extends Thread {
                 if (input.ready()) {
                     line = input.readLine();
 
-                    if (line == null) continue;
+                    if (line == null) {
+                        continue;
+                    }
 
                     final Packet newpacket = new Packet();
                     newpacket.ReadPacket(line);
@@ -245,7 +239,7 @@ public class RunTCP extends Thread {
             System.out.println("failed to create file");
             //MainActivity.ShowMsg("failed to create file");
         }
-        Button buttonStart = (Button) findViewById(R.id.button1);
+        Button buttonStart = findViewById(R.id.button1);
 
         fw = new FileWriter("/data/local/Warden/log1.txt", true);
         bw = new BufferedWriter(fw);
@@ -360,7 +354,6 @@ public class RunTCP extends Thread {
                 if (inf[6].equals("UDP")) {
                     bw.write(tempString + "\n");
                     bw.flush();
-                    continue;
                 } else if (inf.length > 8) {
                     proc = inf[8];
                     portproc.put(port, proc);

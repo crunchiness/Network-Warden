@@ -164,6 +164,4 @@ public class Mail extends javax.mail.Authenticator {
     public void setBody(String _body) {
         this._body = _body;
     }
-
-    // more of the getters and setters ��..
 } 

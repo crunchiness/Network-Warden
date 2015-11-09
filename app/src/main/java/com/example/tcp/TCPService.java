@@ -5,7 +5,6 @@ import java.io.IOException;
 import android.app.Service;
 import android.content.Intent;
 import android.os.IBinder;
-import android.widget.TextView;
 
 public class TCPService extends Service {
     RunTCP runtcp;
@@ -39,7 +38,7 @@ public class TCPService extends Service {
     @Override
     public void onStart(Intent intent, int startid) {
         System.out.println("Starting service ......");
-        MainActivity.ShowMsg("Starting service ......");
+//        MainActivity.ShowMsg("Starting service ......");
         runtcp = new RunTCP();
         if (runtcp.ready) {
             try {
@@ -68,7 +67,7 @@ super.onCreate(savedInstanceState);
 setContentView(R.layout.main);
 
 /*
-* TextView tv = (TextView)findViewById(R.id.tvTemp); tv.setText("����");
+* TextView tv = (TextView)findViewById(R.id.tvTemp); tv.setText("");
 */
 /*
 buttonStart = (Button) findViewById(R.id.btnStart);
