@@ -11,6 +11,20 @@ public class Packet {
     private String ipFLAGS;
     private String ipPROTOCOL;
     private String ipLENGTH;
+    private String srcIP;
+    private String srcPort;
+    private String dstIP;
+    private String dstPort;
+    private String tcpFLAGS;
+    private String tcpCKSUM;
+    private String tcpSEQ;
+    private String tcpACK;
+    private String tcpWIN;
+    private String tcpOPTIONS;
+    private String length;
+    private String other;
+    private String tcpPROTOCOL;
+    private String tcpLENGTH;
 
     public Packet(String line) throws IP6Exception, BadInputException {
         this.makePacket(line);
@@ -36,7 +50,6 @@ public class Packet {
                 timeStamp = matcher.group(1);
                 String params = matcher.group(3);
                 parseIPParams(params);
-                System.out.println(timeStamp);
             } else if (matcher.group(2).charAt(0) == '6') {
                 throw new IP6Exception();
             } else {
@@ -54,26 +67,93 @@ public class Packet {
         if (!m.matches()) {
             throw new BadInputException("Failed to read IP params.");
         }
-        this.ipTOS = m.group(1);
-        this.ipTTL = m.group(2);
-        this.ipID = m.group(3);
-        this.ipOFFSET = m.group(4);
-        this.ipFLAGS = m.group(5);
-        this.ipPROTOCOL = m.group(6);
-        this.ipLENGTH = m.group(7);
+        ipTOS = m.group(1);
+        ipTTL = m.group(2);
+        ipID = m.group(3);
+        ipOFFSET = m.group(4);
+        ipFLAGS = m.group(5);
+        ipPROTOCOL = m.group(6);
+        ipLENGTH = m.group(7);
     }
 
     public boolean isInitialized() {
-        System.out.println(timeStamp);
         return timeStamp != null;
     }
 
     public void parseSecondaryLine(String line) throws BadInputException {
-//    41.249.197.208.63145 > 192.168.0.20.4852: Flags [P.], cksum 0xacdf (correct), seq 246:284, ack 276, win 229, options [nop,nop,TS val 1454965 ecr 6631861], length 38
-        Pattern p = Pattern.compile("    ([0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+)\\.([0-9]+) > ([0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+)\\.([0-9]+): Flags \\[([^]]*)\\], cksum [^ ]* \\((correct|incorrect)\\), seq ([0-9:]+), ack ([0-9]+), win ([0-9]+), options \\[([^]]*)\\], length ([0-9]+)");
-        Matcher m = p.matcher(line);
-        if (!m.matches()) {
-            throw new BadInputException("Failed to parse secondary.");
+        switch (ipPROTOCOL) {
+            case "TCP":
+                parseTCPLine(line);
+                break;
+            case "UDP":
+                parseUDPLine(line);
+                break;
+            default:
+                throw new IllegalStateException("Protocol must have been set to TCP or UDP but it wasn't.");
         }
+    }
+
+    private void parseTCPLine(String line) throws BadInputException {
+        //     41.249.197.208.63145 > 192.168.  0. 20.4852: Flags [P.], cksum 0xacdf (correct), seq 246:284, ack 276, win 229, options [nop,nop,TS val 1454965 ecr 6631861], length 38
+        //    192.168.  0. 20.53887 >  91.234.200.114.  80: Flags [P.], cksum 0xc015 (correct), seq 1:1080,  ack 1,   win 229, length 1079: HTTP, length: 1079
+        Pattern[] tcpPatterns = {
+                Pattern.compile("    ([0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+)\\.([0-9]+) > ([0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+)\\.([0-9]+): Flags \\[([^]]*)\\], cksum [^ ]* \\((correct|incorrect[^)]*)\\), seq ([0-9:]+), ack ([0-9]+), win ([0-9]+), length ([0-9]+)"),
+                Pattern.compile("    ([0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+)\\.([0-9]+) > ([0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+)\\.([0-9]+): Flags \\[([^]]*)\\], cksum [^ ]* \\((correct|incorrect[^)]*)\\), seq ([0-9:]+), ack ([0-9]+), win ([0-9]+), options \\[([^]]*)\\], length ([0-9]+)"),
+                Pattern.compile("    ([0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+)\\.([0-9]+) > ([0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+)\\.([0-9]+): Flags \\[([^]]*)\\], cksum [^ ]* \\((correct|incorrect[^)]*)\\), seq ([0-9:]+), ack ([0-9]+), win ([0-9]+), length ([0-9]+): ([A-Z]+), length: ([0-9]+)"),
+                Pattern.compile("    ([0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+)\\.([0-9]+) > ([0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+)\\.([0-9]+): Flags \\[([^]]*)\\], cksum [^ ]* \\((correct|incorrect[^)]*)\\), seq ([0-9:]+), ack ([0-9]+), win ([0-9]+), options \\[([^]]*)\\], length ([0-9]+): ([A-Z]+), length: ([0-9]+)")
+        };
+
+        int matched = -1;
+        Matcher m = null;
+        for (int i = 0; i < tcpPatterns.length; i++) {
+            m = tcpPatterns[i].matcher(line);
+            if (m.matches()) {
+                matched = i;
+                break;
+            }
+        }
+
+        if (matched == -1) {
+            throw new BadInputException("Failed to parse TCP line.");
+        }
+
+        srcIP = m.group(1);
+        srcPort = m.group(2);
+        dstIP = m.group(3);
+        dstPort = m.group(4);
+        tcpFLAGS = m.group(5);
+        tcpCKSUM = m.group(6);
+        tcpSEQ = m.group(7);
+        tcpACK = m.group(8);
+        tcpWIN = m.group(9);
+        length = m.group(11);
+        if (matched == 1 || matched == 3) {
+            tcpOPTIONS = m.group(10);
+        }
+        if (matched == 2) {
+            tcpPROTOCOL = m.group(11);
+            tcpLENGTH = m.group(12);
+        }
+        if (matched == 3) {
+            tcpPROTOCOL = m.group(12);
+            tcpLENGTH = m.group(13);
+        }
+    }
+
+    private void parseUDPLine(String line) throws BadInputException {
+        Pattern udpPattern = Pattern.compile("    ([0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+)\\.([0-9]+) > ([0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+)\\.([0-9]+): UDP, length ([0-9]+)");
+        Matcher m = udpPattern.matcher(line);
+        if (!m.matches()) {
+            throw new BadInputException("Failed to parse UDP line.");
+        }
+        srcIP = m.group(1);
+        srcPort = m.group(2);
+        dstIP = m.group(3);
+        dstPort = m.group(4);
+        length = m.group(5);
+    }
+
+    public void parseTertiaryLine(String line) {
+        other += line + "\n";
     }
 }
