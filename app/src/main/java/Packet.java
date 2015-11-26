@@ -17,7 +17,7 @@ public class Packet {
     private String srcPort;
     private String dstIP;
     private String dstPort;
-    private String other;
+    private String other = "";
 
     private final HashMap<String, String> values = new HashMap<>();
     private boolean ignore = false;
@@ -160,18 +160,35 @@ public class Packet {
 
     public String toString() {
         if (ignore) {
-            return ipLine + "\n" + secondaryLine + "\n" + other;
+            String str = "";
+            if (ipLine != null) {
+                str += "I: " + ipLine;
+                str += (str.charAt(str.length()-1) == '\n') ? "" : "\n";
+            }
+            if (secondaryLine != null) {
+                str += "S: " + secondaryLine;
+                str += (str.charAt(str.length()-1) == '\n') ? "" : "\n";
+            }
+            if (other.length() > 0) {
+                str += "O: " + other;
+                str += (str.charAt(str.length()-1) == '\n') ? "" : "\n";
+            }
+            return str;
         } else {
             // schema
             // ip                                      tcp
             // protocol;tos;ttl;id;offset;flags;length;flags;cksum;seq;ack;win;options;tcpProtocol;tcpLength
             // ip                                      udp
             // protocol;tos;ttl;id;offset;flags;length;udpLength
-            String packet = String.format("%s;%s;%s;%s;%s;%s;%s;%s;%s;%s;%s;", ipPROTOCOL, ipTOS, ipTTL, ipID, ipOFFSET, ipFLAGS, ipLENGTH, srcIP, srcPort, dstIP, dstPort);
+            String packet = String.format("%s;%s;%s;%s;%s;%s;%s;%s;%s;%s;%s;%s;", ipPROTOCOL, timeStamp, ipTOS, ipTTL, ipID, ipOFFSET, ipFLAGS, ipLENGTH, srcIP, srcPort, dstIP, dstPort);
             for (String value : values.values()) {
                 packet += value + ";";
             }
-            return packet.substring(0, packet.length() - 1);
+            return packet.substring(0, packet.length() - 1) + "\n";
         }
+    }
+
+    public boolean isTCP() {
+        return ipPROTOCOL.equals("TCP");
     }
 }

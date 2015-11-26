@@ -81,9 +81,9 @@ public class StupidTest {
 
     private static void finishPacket(Packet packet, BufferedWriter output, BufferedWriter failOutput) throws IOException {
         if (packet.isIgnore()) {
-            failOutput.write(packet.toString() + "\n");
+            failOutput.write(packet.toString());
         } else {
-            output.write(packet.toString() + "\n");
+            output.write(packet.toString());
         }
     }
 }
