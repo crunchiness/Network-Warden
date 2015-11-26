@@ -1,4 +1,4 @@
-package com.example.tcp;
+package warden;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -11,27 +11,29 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import android.widget.Button;
 
 public class RunTCP extends Thread {
 
-    Process process;         //process running tcpdump
-    boolean running;         //a flag. when it turns to "false", terminate tcpdump
-    HashTable myhash;        //table
-    InputStreamReader ir;    //output stream of tcpdump  process
-    BufferedReader input;    //read output stream of tcpdump  process
-    DataOutputStream os;     //input stream of tcpdump  process
-    boolean ready;           //if tcpdump and lsof get permission, the value is true
-    FileWriter fw;           //write record
-    BufferedWriter bw;       //record writer
+    Process process;         // process running tcpdump
+    boolean running;         // a flag. when it turns to "false", terminate tcpdump
+    HashTable hashTable;        // table
+    InputStreamReader ir;    // output stream of tcpdump  process
+    BufferedReader input;    // read output stream of tcpdump  process
+    DataOutputStream os;     // input stream of tcpdump  process
+    boolean ready;           // if tcpdump and lsof get permission, the value is true
+    FileWriter fw;           // write record
+    BufferedWriter bw;       // record writer
     static String localIP;
 
     public RunTCP() {
         try {
-            myhash = new HashTable();
+            hashTable = new HashTable();
 
-            //get the superuser permission
+            // get the superuser permission
             String commands = "su";
             process = Runtime.getRuntime().exec(commands);
 
@@ -39,163 +41,190 @@ public class RunTCP extends Thread {
             input = new BufferedReader(ir);
             os = new DataOutputStream(process.getOutputStream());
 
-            //check the user
+            // check the user
             os.writeBytes("id\n");
             String line;
             boolean permission = false;
             while ((line = input.readLine()) != null) {
-                if (line.contains("root")) permission = true;
-                if (!input.ready()) break;
+                if (line.contains("root")) {
+                    permission = true;
+                }
+                if (!input.ready()) {
+                    break;
+                }
             }
+
             if (permission) {
                 System.out.println("tcpdump got permission");
                 MainActivity.ShowMsg("tcpdump got permission");
-                ready = myhash.ready;
+                ready = hashTable.ready;
             } else {
                 System.out.println("tcpdump cannot get permission");
                 MainActivity.ShowMsg("tcpdump cannot get permission");
                 ready = false;
             }
-            localIP = myhash.localIP;
+            localIP = hashTable.localIP;
 
         } catch (IOException e1) {
-            System.out.println("permission deny");
-            MainActivity.ShowMsg("permission deny");
+            System.out.println("permission denied");
+            MainActivity.ShowMsg("permission denied");
             e1.printStackTrace();
         }
     }
 
     public void run() {
-        running = true;     //a flag. when it turns to "false", terminate tcpdump
+        running = true;     // a flag. when it turns to "false", terminate tcpdump
 
         try {
-            Packet initpackets[] = new Packet[200];   //existing connections
-            int numpac = 0;                           //number of existing connections
+            Packet initialPackets[] = new Packet[200]; // existing connections
+            int numberOfPackets = 0; // number of existing connections
 
-            //run lsof to get existing connections
-            os.writeBytes("/data/local/lsof +c 0 -i TCP 2>/dev/null\n");
+            // run lsof to get existing connections
+            os.writeBytes("data/local/lsof +c 0 -i 2>/dev/null | grep -E 'TCP|UDP'\n");
             os.flush();
 
-            //System.out.println("adsfdgawg");
-            long t2 = System.currentTimeMillis();
-            boolean firstline = true;
+            // regex to parse packet
+            //                               0       1         2         3         4         5      6        7           8       9     10
+//                                           app                                 IPv4              TCP       src    srcport    dst    dstport
+            Pattern tcp = Pattern.compile("([^ ]) +([0-9]+) +([0-9]+) +([^ ]+) +([^ ]+) +([0-9]+) +([^ ]+) +([^:]+):([0-9]+)->([^:]+):([0-9]+)");
+            //[0].android.chrome [1]31012    [2]10051  [3]146u  IPv4 493928       TCP 192.168.0.17:33806->62.254.123.65:80 (CLOSE_WAIT)
+
+            long t = System.currentTimeMillis();
+            boolean firstLine = true;
             while (true) {
                 if (!input.ready()) {
-                    if (System.currentTimeMillis() - t2 > 2000)   //if lsof return nothing
+                    if (System.currentTimeMillis() - t > 2000)   // if lsof returns nothing
                         break;
                 } else {
                     String line = input.readLine();
-                    System.out.println(line);
-                    if (firstline) {
-                        firstline = false;
+                    Matcher matcher = tcp.matcher(line);
+                    if (!matcher.matches()) {
+                        // TODO save this mismatch
+                    }
+
+                    // TODO remove?
+                    if (firstLine) {
+                        firstLine = false;
                         continue;
                     }
-                    line = line.replace(':', ' ');
-                    line = line.replace('-', ' ');
-                    line = line.replace('>', ' ');
 
-                    String inf[] = line.split(" +");
-                    Packet newpacket = new Packet();      //make SYN packet for the connection
+                    Packet newPacket = new Packet();      //make SYN packet for the connection
 
-                    newpacket.Protocol = inf[6];
-                    newpacket.SrcIP = inf[7];
-                    newpacket.SrcPort = inf[8];
-                    if (inf.length > 10) {
-                        newpacket.DestIP = inf[9];
-                        newpacket.DestPort = inf[10];
-                    } else {
-                        newpacket.DestIP = "*";
-                        newpacket.DestPort = "*";
+                    newPacket.protocol = matcher.group(6);
+                    newPacket.srcIP = matcher.group(7);
+                    newPacket.srcPort = matcher.group(8);
+                    newPacket.length = "0";
+                    newPacket.timeStamp = " ";
+                    newPacket.TCPflags = "S " + matcher.group(0) + " " + matcher.group(1);
+                    initialPackets[numberOfPackets++] = newPacket;
+                    System.out.println(newPacket.toString());
+
+                    if (!input.ready()) {
+                        break;
                     }
-                    newpacket.length = "0";
-                    newpacket.Time = " ";
-                    newpacket.TCPflags = "S " + inf[0] + " " + inf[1];
-
-                    initpackets[numpac++] = newpacket;
-
-                    System.out.println(newpacket.ToString());
-
-                    if (!input.ready()) break;
                 }
             }
 
-            //System.out.println(numpac);
             System.out.println("Starting tcpdump");
-            //MainActivity.ShowMsg("Starting tcpdump...");
 
-            //runtcpdump
+            // run tcpdump
             os.writeBytes("/data/local/tcpdump -v -n tcp\n");
             String line;
 
-            //discard first several packets
-            /*
-			while(true){
-				if(input.ready()){
-					line = input.readLine ();
-					//System.out.println(line);
-					if (line == null) continue;
-					String packetTime = line.split(" ")[0];
-					if(packetTime.charAt(0) > '9' || packetTime.charAt(0) < '0') continue;
-					long t1 = ((long) System.currentTimeMillis()) % (1000*60);
-					packetTime = packetTime.replace('.', ':');
-					int sec = Integer.parseInt(packetTime.split(":")[2]);
-					int ms  = Integer.parseInt(packetTime.split(":")[3].substring(0, 3));
-					t2 = sec*1000 + ms;
-					
-					if(t1 < t2) t1 += 60 * 1000;
-					
-					if(t1 - t2 > 100) continue;
-					else break;
-				}
-				
-			}
-			*/
-            System.out.println("tcpdump started");
-            //MainActivity.ShowMsg("tcpdump started");
 
-            boolean isfirstpacket = true;
-            int lastpacket = 0;
-            String lastserver = "";
+/*
+
+    88.221.134.226.80 > 192.168.0.17.47836: Flags [.], cksum 0x1610 (correct), ack 556, win 488, options [nop,nop,TS val 1828728669 ecr 163128], length 0
+13:33:40.633956 IP (tos 0x0, ttl 58, id 27515, offset 0, flags [DF], proto TCP (6), length 342)
+    88.221.134.226.80 > 192.168.0.17.47836: Flags [P.], cksum 0x937e (correct), seq 1:291, ack 556, win 488, options [nop,nop,TS val 1828728669 ecr 163128], length 290: HTTP, length: 290
+	HTTP/1.1 304 Not Modified
+	Content-Type: application/javascript
+	Last-Modified: Wed, 30 Sep 2015 10:51:44 GMT
+	ETag: 34bd4a6455a2d6f5c858e3afb4a009fe
+	Cache-Control: public, max-age=424
+	Expires: Mon, 23 Nov 2015 13:40:44 GMT
+	Date: Mon, 23 Nov 2015 13:33:40 GMT
+	Connection: keep-alive
+
+13:33:40.634088 IP (tos 0x0, ttl 64, id 32747, offset 0, flags [DF], proto TCP (6), length 52)
+    192.168.0.17.47836 > 88.221.134.226.80: Flags [.], cksum 0xa09f (incorrect -> 0x15de), ack 291, win 245, options [nop,nop,TS val 163131 ecr 1828728669], length 0
+13:33:40.765841 IP (tos 0x0, ttl 64, id 8423, offset 0, flags [DF], proto TCP (6), length 455)
+    192.168.0.17.54289 > 54.230.196.57.80: Flags [P.], cksum 0x6f03 (correct), seq 492:895, ack 33684, win 1315, options [nop,nop,TS val 163144 ecr 2293450274], length 403: HTTP, length: 403
+	GET /pub/cx/v2.8.15-1-59dedc7/cx.js HTTP/1.1
+	Host: cdn.beanstock.com
+	Connection: keep-alive
+	Accept: *\/*
+            User-Agent: Mozilla/5.0 (Linux; Android 4.4.2; XT1032 Build/KLB20.9-1.10-1.24-1.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/46.0.2490.76 Mobile Safari/537.36
+            Referer: http://www.last.fm/user/crunchiness
+            Accept-Encoding: gzip, deflate, sdch
+            Accept-Language: en-GB,en-US;q=0.8,en;q=0.6
+
+
+*/
+
+
+
+            System.out.println("tcpdump started");
+
+            // first line of a packet
+            Pattern timePattern = Pattern.compile("[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]+ ");
+            Packet currentPacket = new Packet();
             while (running) {
                 if (input.ready()) {
                     line = input.readLine();
-
                     if (line == null) {
                         continue;
                     }
 
                     final Packet newpacket = new Packet();
-                    newpacket.ReadPacket(line);
+//                    newpacket.ReadPacket(line);
 
-                    if (isfirstpacket) {
-                        isfirstpacket = false;
+                    Matcher timeMatcher = timePattern.matcher(line);
+                    if (timeMatcher.find()) {
+                        // finish old packet and start new
 
-                        //write the SYN packets of existing connections
-                        for (int i = 0; i < numpac; i++) {
-                            bw.write(newpacket.Time + initpackets[i].ToString() + ";");
-                            bw.flush();
-                        }
-                    }
+                        String inf = newpacket.destIP + newpacket.destPort + newpacket.srcIP + newpacket.srcPort + newpacket.protocol;
 
-                    if (newpacket.SrcIP.equals(" ")) continue;
+//                        String detectedApp = hashTable.getApp(newPacket);
 
-                    //process non-SYN packet
-                    if (newpacket.Protocol.equals("TCP") && !newpacket.TCPflags.contains("S")) {
-                        bw.write(newpacket.ToString() + ";");
+                        String packetStr = currentPacket.toString();
+                        bw.write(packetStr + "\nboba\n");
                         bw.flush();
-                        continue;
+                        currentPacket = new Packet();
+                    } else {
+                        currentPacket.addLine(line);
                     }
+//
+//                    // wtf
+//                    if (isFirstPacket) {
+//                        isFirstPacket = false;
+//                        // fake the SYN packets of existing connections
+//                        for (int i = 0; i < numberOfPackets; i++) {
+//                            bw.write(newPacket.timeStamp + initialPackets[i].toString() + ";");
+//                            bw.flush();
+//                        }
+//                    }
 
+//                    // Skip packets without source IP
+//                    if (newPacket.srcIP.equals(" ")) {
+//                        continue;
+//                    }
 
-                    //String temp = newpacket.ToString();
-                    String temp = myhash.GetAPP(newpacket);
-                    if (temp.equals("IP WRONG")) continue;
-                    else temp = newpacket.ToString() + " " + temp;
+//                    // process non-SYN packet
+//                    if (newPacket.protocol.equals("TCP") && !newPacket.TCPflags.contains("S")) {
+//                        bw.write(newPacket.toString() + ";");
+//                        bw.flush();
+//                        continue;
+//                    }
 
-                    bw.write(temp + ";");
-                    bw.flush();
+//                    String detectedApp = hashTable.getApp(newPacket);
 
-                    //}
+                    // Only writes packets of recognized apps
+//                    if (!detectedApp.equals("IP WRONG")) {
+//                        detectedApp = newPacket.toString() + " " + detectedApp;
+//                        bw.write(detectedApp + ";");
+//                        bw.flush();
+//                    }
 
                 } else {
                     //System.out.println("nonoonono");
@@ -213,15 +242,15 @@ public class RunTCP extends Thread {
 
     }
 
-    public void DestroyTCP() throws IOException {
+    public void destroyTCP() throws IOException {
         running = false;
-        CloseFile();
-        postprocess();
+        closeFile();
+//        postprocess();
         process.destroy();
     }
 
     //open log1.txt
-    public void OpenFile() throws IOException {
+    public void openFile() throws IOException {
         File folder = new File("/data/local/Warden");
         if (!folder.exists() || !folder.isDirectory()) {
             folder.mkdir();
@@ -251,11 +280,11 @@ public class RunTCP extends Thread {
     }
 
     //close log1.txt and get it readable
-    public void CloseFile() throws IOException {
+    public void closeFile() throws IOException {
         bw.close();
         fw.close();
 
-        Runtime.getRuntime().exec("chmod 777 /data/local/Warden/log1.txt \n");
+        Runtime.getRuntime().exec("chmod 777 /data/local/Warden/log1.txt\n");
     }
 
 
@@ -284,7 +313,7 @@ public class RunTCP extends Thread {
     }
 
 
-    public String GetProtocol(String msg) {
+    public String getProtocol(String msg) {
         String[] s = msg.split(" ");
         int p = -1;
         for (int i = 0; i < s.length; i++) {
@@ -385,77 +414,4 @@ public class RunTCP extends Thread {
             }
         }
     }
-
-
 }
-
-
-
-
-/*
-String Procs[] = {"facebook", "mediaserver"};
-String ProcID[] = new String [10];
-int numproc = 0;
-
-Packet initpackets[] = new Packet[100];
-int numpac = 0;
-
-for(int i = 0; i < Procs.length;i++){
-	String proc = Procs[i];
-	os.writeBytes("ps | grep " + proc +"\n");
-	System.out.println();
-	os.flush();
-	
-	long t1 = System.currentTimeMillis();
-	while(true){
-		if(!input.ready()){
-			if (System.currentTimeMillis() - t1 > 300)
-			break;	
-		}					
-		else{
-			String line = input.readLine();
-			ProcID[numproc] = line.split(" +")[1];
-			numproc++;		
-			if(!input.ready()) break;
-		}
-	}
-}
-for(int i = 0; i < numproc;i++){
-	os.writeBytes("/data/local/lsof -a -p "+ProcID[i]+" 2>/dev/null | grep TCP\n");
-	System.out.println("/data/local/lsof -a -p "+ProcID[i]+" 2>/dev/null | grep TCP");
-	os.flush();
-	
-	long t2 = System.currentTimeMillis();
-	while(true){
-		if(!input.ready()){
-			if (System.currentTimeMillis() - t2 > 300)
-			break;	
-		}	
-		else{
-			String line = input.readLine();
-			line = line.replace(':', ' ');
-			line = line.replace('-', ' ');
-			line = line.replace('>', ' ');
-			
-			String inf[] = line.split(" +");
-			Packet newpacket = new Packet();
-			
-			newpacket.Protocol = inf[6];
-			newpacket.SrcIP = inf[7];
-			newpacket.SrcPort = inf[8];
-			newpacket.DestIP = inf[9];
-			newpacket.DestPort = inf[10];
-			newpacket.length = "0";
-			newpacket.Time = " ";
-			newpacket.TCPflags = "S "+inf[0]+" "+inf[1];
-			
-			initpackets[numpac++] = newpacket;
-			
-			System.out.println(newpacket.ToString());
-			
-			if(!input.ready()) break;
-		}
-	}
-	if(!input.ready()) break;
-}
-*/

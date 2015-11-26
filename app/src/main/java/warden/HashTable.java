@@ -1,4 +1,4 @@
-package com.example.tcp;
+package warden;
 
 import java.io.BufferedReader;
 import java.io.DataOutputStream;
@@ -6,7 +6,6 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 
@@ -18,23 +17,23 @@ public class HashTable {
     DataOutputStream os;          //input stream of lsof process
     InputStreamReader ir;         //output stream of lsof process
     BufferedReader input;         //read output stream of lsof process
-    int lastcheck;                //time of the last check of table
+    int lastCheck;                //timeStamp of the last check of table
     boolean ready;                //if lsof get permission, the value is true
 
-    String thisserver;            //server ip of this packet
-    String lastserver;            //server ip of last packet
-    int thisquerytime;            //the time of calling GetApp()
-    int lastquerytime;            //last time of calling GetApp()
-    String lastresult;            //result of last query
+    String thisServer;            //server ip of this packet
+    String lastServer;            //server ip of last packet
+    int thisQueryTime;            //the timeStamp of calling GetApp()
+    int lastQueryTime;            //last timeStamp of calling GetApp()
+    String lastResult;            //result of last query
 
     public HashTable() throws IOException {  //initialization
 
-        thisserver = "";
-        lastserver = "";
-        lastresult = "";
-        thisquerytime = 1000;
-        lastquerytime = 0;
-        lastcheck = 0;
+        thisServer = "";
+        lastServer = "";
+        lastResult = "";
+        thisQueryTime = 1000;
+        lastQueryTime = 0;
+        lastCheck = 0;
 
         Port_PID = new HashMap<String, String>();
         Port_Time = new HashMap<String, Integer>();
@@ -53,8 +52,8 @@ public class HashTable {
             if (!input.ready()) break;
         }
         if (permission) {
-            System.out.println("lsof get permission");
-            MainActivity.ShowMsg("lsof get permission");
+            System.out.println("lsof got permission");
+            MainActivity.ShowMsg("lsof got permission");
             ready = true;
         } else {
             System.out.println("lsof cannot get permission");
@@ -72,51 +71,51 @@ public class HashTable {
 
 
     //return associated process name of a packet
-    public String GetAPP(Packet newpacket) {
-        int Time = newpacket.GetTimeSec();
+    public String getApp(Packet newpacket) {
+        int Time = newpacket.getTimeSec();
 
         //check table every 30s
-        if (Time - lastcheck > 30) {
+        if (Time - lastCheck > 30) {
             CheckTable(Time);
         }
 
-        String inf;         //key of table
+        String inf;         // key of table
         String localPort;
 
 
         //key = localip + localport + serverip + serverport + protocol
-        if (newpacket.SrcIP.equals(localIP)) {
-            localPort = newpacket.SrcPort;
-            thisserver = newpacket.DestIP + newpacket.DestPort;
-            inf = newpacket.SrcIP + newpacket.SrcPort + newpacket.DestIP + newpacket.DestPort + newpacket.Protocol;
-        } else if (newpacket.DestIP.equals(localIP)) {
-            localPort = newpacket.DestPort;
-            thisserver = newpacket.SrcIP + newpacket.DestPort;
-            inf = newpacket.DestIP + newpacket.DestPort + newpacket.SrcIP + newpacket.SrcPort + newpacket.Protocol;
+        if (newpacket.srcIP.equals(localIP)) {
+            localPort = newpacket.srcPort;
+            thisServer = newpacket.destIP + newpacket.destPort;
+            inf = newpacket.srcIP + newpacket.srcPort + newpacket.destIP + newpacket.destPort + newpacket.protocol;
+        } else if (newpacket.destIP.equals(localIP)) {
+            localPort = newpacket.destPort;
+            thisServer = newpacket.srcIP + newpacket.destPort;
+            inf = newpacket.destIP + newpacket.destPort + newpacket.srcIP + newpacket.srcPort + newpacket.protocol;
         } else {
             System.out.println("IP wrong!");
             return "IP WRONG";
         }
         //inf = localPort;
-        //inf = newpacket.SrcIP+newpacket.SrcPort+newpacket.DestIP + newpacket.DestPort + new.protocol;
+
 
         if (Port_PID.containsKey(inf)) {
             return Port_PID.get(inf);
         } else {
-            String packetTime = newpacket.Time.replace('.', ':');
+            String packetTime = newpacket.timeStamp.replace('.', ':');
             String ts[] = packetTime.split(":");
             int sec = Integer.parseInt(ts[2]);
             int ms = Integer.parseInt(ts[3].substring(0, 3));
-            thisquerytime = sec * 1000 + ms;
+            thisQueryTime = sec * 1000 + ms;
 
-            //if the time difference between this query and last query is less than 30ms, and
+            //if the timeStamp difference between this query and last query is less than 30ms, and
             //their server ips are the same, directly return the result of last query
-            if (thisquerytime < lastquerytime) thisquerytime += 60000;
-            if (thisquerytime - lastquerytime < 50 && thisserver.equals(lastserver)) {
-                Port_PID.put(inf, lastresult);
+            if (thisQueryTime < lastQueryTime) thisQueryTime += 60000;
+            if (thisQueryTime - lastQueryTime < 50 && thisServer.equals(lastServer)) {
+                Port_PID.put(inf, lastResult);
                 Port_Time.put(inf, Time);
-                lastquerytime = thisquerytime;
-                return lastresult;
+                lastQueryTime = thisQueryTime;
+                return lastResult;
             }
 
             try {
@@ -125,49 +124,42 @@ public class HashTable {
                 os.writeBytes(commands);
                 os.flush();
 
-                String line;
-
                 int i = 0;
                 String Name_PID = "";
                 long tt1 = System.currentTimeMillis();
                 while (true) {
                     if (!input.ready()) {
                         if (System.currentTimeMillis() - tt1 > 1000) {  //which means lsof dont get any result
-                            String er = "unknow";
+                            String er = "unknown";
                             Port_PID.put(inf, er);
                             Port_Time.put(inf, Time);
-                            //System.out.println(er);
                             return er;
 
-                        } else continue;
+                        } else {
+                            continue;
+                        }
                     }
-                    line = input.readLine();
+
                     if (i == 0) {
-                        //System.out.println(line);
                         i++;
                         continue;
                     } else if (i == 1) {
-                        //System.out.println(line);
                         i++;
-                        String[] temp = line.split(" ");
+                        String[] temp = input.readLine().split(" ");
                         Name_PID = temp[0] + " " + temp[1];
                         Port_PID.put(inf, Name_PID);
                         Port_Time.put(inf, Time);
-                        //System.out.println("got name and pid: "+Name_PID);
-                    }
-                    if (!input.ready()) {
-                        lastquerytime = thisquerytime;
-                        lastserver = thisserver;
-                        lastresult = Name_PID;
-                        return Name_PID;
                     }
 
-                    //return null;
+                    if (!input.ready()) {
+                        lastQueryTime = thisQueryTime;
+                        lastServer = thisServer;
+                        lastResult = Name_PID;
+                        return Name_PID;
+                    }
                 }
             } catch (IOException e) {
-                // TODO Auto-generated catch block
                 System.out.println(" lsof wrong");
-                //MainActivity.ShowMsg("lsof wrong");
                 e.printStackTrace();
                 return null;
             }
@@ -189,6 +181,6 @@ public class HashTable {
             Port_PID.remove(k);
             Port_Time.remove(k);
         }
-        lastcheck = Time;
+        lastCheck = Time;
     }
 }

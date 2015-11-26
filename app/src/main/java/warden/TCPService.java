@@ -1,4 +1,4 @@
-package com.example.tcp;
+package warden;
 
 import java.io.IOException;
 
@@ -27,7 +27,7 @@ public class TCPService extends Service {
         System.out.println("service destroyed");
         MainActivity.ShowMsg("service destroyed");
         try {
-            runtcp.DestroyTCP();
+            runtcp.destroyTCP();
         } catch (IOException e) {
             // TODO Auto-generated catch block
             e.printStackTrace();
@@ -42,7 +42,7 @@ public class TCPService extends Service {
         runtcp = new RunTCP();
         if (runtcp.ready) {
             try {
-                runtcp.OpenFile();
+                runtcp.openFile();
             } catch (IOException e) {
                 // TODO Auto-generated catch block
                 e.printStackTrace();
@@ -54,40 +54,3 @@ public class TCPService extends Service {
         }
     }
 }
-/*
-5.MainActivity
-public class MainActivity extends Activity implements OnClickListener {
-private static final String TAG = "ServiceDemo";
-Button buttonStart;
-Button buttonStop;
-
-@Override
-public void onCreate(Bundle savedInstanceState) {
-super.onCreate(savedInstanceState);
-setContentView(R.layout.main);
-
-/*
-* TextView tv = (TextView)findViewById(R.id.tvTemp); tv.setText("");
-*/
-/*
-buttonStart = (Button) findViewById(R.id.btnStart);
-buttonStop = (Button) findViewById(R.id.btnStop);
-
-buttonStart.setOnClickListener(this);
-buttonStop.setOnClickListener(this);
-}
-
-public void onClick(View src) {
-switch (src.getId()) {
-case R.id.btnStart:
-Log.d(TAG, "onClick: starting srvice");
-startService(new Intent(this, MyService.class));
-break;
-case R.id.btnStop:
-Log.d(TAG, "onClick: stopping srvice");
-stopService(new Intent(this, MyService.class));
-break;
-}
-}
-}
-*/
