@@ -1,3 +1,5 @@
+import java.util.HashMap;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -11,20 +13,18 @@ public class Packet {
     private String ipFLAGS;
     private String ipPROTOCOL;
     private String ipLENGTH;
+
     private String srcIP;
     private String srcPort;
     private String dstIP;
     private String dstPort;
-    private String tcpFLAGS;
-    private String tcpCKSUM;
-    private String tcpSEQ;
-    private String tcpACK;
-    private String tcpWIN;
-    private String tcpOPTIONS;
-    private String length;
+
     private String other;
-    private String tcpPROTOCOL;
-    private String tcpLENGTH;
+
+    private HashMap<String, String> values = new HashMap<>();
+    private boolean ignore = false;
+    private String ipLine;
+    private String secondaryLine;
 
     public Packet(String line) throws IP6Exception, BadInputException {
         this.makePacket(line);
@@ -51,12 +51,18 @@ public class Packet {
                 String params = matcher.group(3);
                 parseIPParams(params);
             } else if (matcher.group(2).charAt(0) == '6') {
-                throw new IP6Exception();
+                ignore = true;
+                ipLine = line;
+//                throw new IP6Exception();
             } else {
-                throw new BadInputException("Couldn't read past 'IP'.");
+                ignore = true;
+                ipLine = line;
+//                throw new BadInputException("Couldn't read past 'IP'.");
             }
         } else {
-            throw new BadInputException("Line does not begin with time stamp.");
+            ignore = true;
+            ipLine = line;
+//            throw new BadInputException("Line does not begin with time stamp.");
         }
     }
 
@@ -81,79 +87,100 @@ public class Packet {
     }
 
     public void parseSecondaryLine(String line) throws BadInputException {
-        switch (ipPROTOCOL) {
-            case "TCP":
-                parseTCPLine(line);
-                break;
-            case "UDP":
-                parseUDPLine(line);
-                break;
-            default:
-                throw new IllegalStateException("Protocol must have been set to TCP or UDP but it wasn't.");
+        if (ignore) {
+            secondaryLine = line;
+        } else {
+            switch (ipPROTOCOL) {
+                case "TCP":
+                    parseTCPLine(line);
+                    break;
+                case "UDP":
+                    parseUDPLine(line);
+                    break;
+                default:
+                    System.out.println(ipPROTOCOL);
+                    throw new IllegalStateException("Protocol must have been set to TCP or UDP but it wasn't.");
+            }
         }
     }
 
     private void parseTCPLine(String line) throws BadInputException {
-        //     41.249.197.208.63145 > 192.168.  0. 20.4852: Flags [P.], cksum 0xacdf (correct), seq 246:284, ack 276, win 229, options [nop,nop,TS val 1454965 ecr 6631861], length 38
-        //    192.168.  0. 20.53887 >  91.234.200.114.  80: Flags [P.], cksum 0xc015 (correct), seq 1:1080,  ack 1,   win 229, length 1079: HTTP, length: 1079
-        Pattern[] tcpPatterns = {
-                Pattern.compile("    ([0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+)\\.([0-9]+) > ([0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+)\\.([0-9]+): Flags \\[([^]]*)\\], cksum [^ ]* \\((correct|incorrect[^)]*)\\), seq ([0-9:]+), ack ([0-9]+), win ([0-9]+), length ([0-9]+)"),
-                Pattern.compile("    ([0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+)\\.([0-9]+) > ([0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+)\\.([0-9]+): Flags \\[([^]]*)\\], cksum [^ ]* \\((correct|incorrect[^)]*)\\), seq ([0-9:]+), ack ([0-9]+), win ([0-9]+), options \\[([^]]*)\\], length ([0-9]+)"),
-                Pattern.compile("    ([0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+)\\.([0-9]+) > ([0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+)\\.([0-9]+): Flags \\[([^]]*)\\], cksum [^ ]* \\((correct|incorrect[^)]*)\\), seq ([0-9:]+), ack ([0-9]+), win ([0-9]+), length ([0-9]+): ([A-Z]+), length: ([0-9]+)"),
-                Pattern.compile("    ([0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+)\\.([0-9]+) > ([0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+)\\.([0-9]+): Flags \\[([^]]*)\\], cksum [^ ]* \\((correct|incorrect[^)]*)\\), seq ([0-9:]+), ack ([0-9]+), win ([0-9]+), options \\[([^]]*)\\], length ([0-9]+): ([A-Z]+), length: ([0-9]+)")
-        };
+        //      2. 84. 36.148.51197 > 192.168.  0. 20. 6881: Flags [.],  cksum 0x3c43 (correct), ack 4121294785, win 30706, options [nop,nop,TS val 151940689 ecr 6631215], length 0
+        //    103. 47.133. 65.37679 > 192.168.  0. 20.34965: Flags [R.], cksum 0x8082 (correct), seq 0,       ack 182279039, win 0, length 0
+        //     41.249.197.208.63145 > 192.168.  0. 20. 4852: Flags [P.], cksum 0xacdf (correct), seq 246:284, ack 276,       win 229, options [nop,nop,TS val 1454965 ecr 6631861], length 38
+        //    192.168.  0. 20.53887 >  91.234.200.114.   80: Flags [P.], cksum 0xc015 (correct), seq 1:1080,  ack 1,         win 229, length 1079: HTTP, length: 1079
 
-        int matched = -1;
-        Matcher m = null;
-        for (int i = 0; i < tcpPatterns.length; i++) {
-            m = tcpPatterns[i].matcher(line);
-            if (m.matches()) {
-                matched = i;
-                break;
+        Pattern addresses = Pattern.compile("    ([0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+)\\.([0-9]+) > ([0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+)\\.([0-9]+):.*");
+
+        // Parse addresses and ports
+        Matcher addressMatcher = addresses.matcher(line);
+        if (!addressMatcher.matches()) {
+            throw new BadInputException("Failed to parse TCP line");
+        }
+
+        srcIP = addressMatcher.group(1);
+        srcPort = addressMatcher.group(2);
+        dstIP = addressMatcher.group(3);
+        dstPort = addressMatcher.group(4);
+
+        HashMap<String, Pattern> patterns = new HashMap<>();
+        patterns.put("flags", Pattern.compile("Flags \\[([^]]*)\\]"));
+        patterns.put("cksum", Pattern.compile("cksum [0-9a-fx]+ (correct|incorrect(?:.*))"));
+        patterns.put("seq", Pattern.compile("seq ([0-9:]+)"));
+        patterns.put("ack", Pattern.compile("ack ([0-9]+)"));
+        patterns.put("win", Pattern.compile("win ([0-9]+)"));
+        patterns.put("options", Pattern.compile("options \\[(.*)\\]"));
+        patterns.put("tcpProtocol", Pattern.compile(": ([A-Z]+),"));
+        patterns.put("tcpLength", Pattern.compile("length: ([0-9]+)$"));
+
+
+        // Parse everything else
+        for (Map.Entry<String, Pattern> entry: patterns.entrySet()) {
+            String key = entry.getKey();
+            Pattern p = entry.getValue();
+            Matcher m = p.matcher(line);
+            if (m.find()) {
+                values.put(key, m.group(1));
+            } else {
+                values.put(key, "");
             }
-        }
-
-        if (matched == -1) {
-            throw new BadInputException("Failed to parse TCP line.");
-        }
-
-        srcIP = m.group(1);
-        srcPort = m.group(2);
-        dstIP = m.group(3);
-        dstPort = m.group(4);
-        tcpFLAGS = m.group(5);
-        tcpCKSUM = m.group(6);
-        tcpSEQ = m.group(7);
-        tcpACK = m.group(8);
-        tcpWIN = m.group(9);
-        length = m.group(11);
-        if (matched == 1 || matched == 3) {
-            tcpOPTIONS = m.group(10);
-        }
-        if (matched == 2) {
-            tcpPROTOCOL = m.group(11);
-            tcpLENGTH = m.group(12);
-        }
-        if (matched == 3) {
-            tcpPROTOCOL = m.group(12);
-            tcpLENGTH = m.group(13);
         }
     }
 
     private void parseUDPLine(String line) throws BadInputException {
-        Pattern udpPattern = Pattern.compile("    ([0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+)\\.([0-9]+) > ([0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+)\\.([0-9]+): UDP, length ([0-9]+)");
-        Matcher m = udpPattern.matcher(line);
-        if (!m.matches()) {
-            throw new BadInputException("Failed to parse UDP line.");
+        Pattern addresses = Pattern.compile("    ([0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+)\\.([0-9]+) > ([0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+)\\.([0-9]+): UDP, length ([0-9]+)");
+        Matcher m = addresses.matcher(line);
+        if (m.matches()) {
+            srcIP = m.group(1);
+            srcPort = m.group(2);
+            dstIP = m.group(3);
+            dstPort = m.group(4);
+            values.put("udpLength", m.group(5));
+        } else {
+            ignore = true;
+            secondaryLine = line;
         }
-        srcIP = m.group(1);
-        srcPort = m.group(2);
-        dstIP = m.group(3);
-        dstPort = m.group(4);
-        length = m.group(5);
     }
 
     public void parseTertiaryLine(String line) {
         other += line + "\n";
+    }
+
+    public boolean isIgnore() {
+        return ignore;
+    }
+
+    public String toString() {
+        if (ignore) {
+            return ipLine + "\n" + secondaryLine + "\n" + other;
+        } else {
+            String ip = String.format("IP: TOS %s; TTL %s; ID %s; OFFSET %s; FLAGS %s; PROTOCOL %s; LENGTH %s.", ipTOS, ipTTL, ipID, ipOFFSET, ipFLAGS, ipPROTOCOL, ipLENGTH);
+            String two = ipPROTOCOL + ": ";
+            two += String.format("%s:%s > %s:%s; ", srcIP, srcPort, dstIP, dstPort);
+            for (Map.Entry<String, String> entry : values.entrySet()) {
+                two += entry.getKey() + " " + entry.getValue() + "; ";
+            }
+            return ip + "\n" + two;
+        }
     }
 }
