@@ -13,20 +13,18 @@ public class Packet {
     private String ipFLAGS;
     private String ipPROTOCOL;
     private String ipLENGTH;
-
     private String srcIP;
     private String srcPort;
     private String dstIP;
     private String dstPort;
-
     private String other;
 
-    private HashMap<String, String> values = new HashMap<>();
+    private final HashMap<String, String> values = new HashMap<>();
     private boolean ignore = false;
     private String ipLine;
     private String secondaryLine;
 
-    public Packet(String line) throws IP6Exception, BadInputException {
+    public Packet(String line) {
         this.makePacket(line);
     }
 
@@ -38,55 +36,43 @@ public class Packet {
      * Makes a packet from IP line
      *
      * @param line IP line string
-     * @throws IP6Exception
-     * @throws BadInputException
      */
-    private void makePacket(String line) throws IP6Exception, BadInputException {
+    private void makePacket(String line) {
+        ipLine = line;
         // 18:03:58.938770 IP (tos 0x0, ttl 108, id 4844, offset 0, flags [none], proto UDP (17), length 48)
         Pattern timePattern = Pattern.compile("([0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]+) IP(.).?\\((.*)\\)");
         Matcher matcher = timePattern.matcher(line);
-        if (matcher.matches()) {
-            if (matcher.group(2).charAt(0) == ' ') {
-                timeStamp = matcher.group(1);
-                String params = matcher.group(3);
-                parseIPParams(params);
-            } else if (matcher.group(2).charAt(0) == '6') {
-                ignore = true;
-                ipLine = line;
-//                throw new IP6Exception();
-            } else {
-                ignore = true;
-                ipLine = line;
-//                throw new BadInputException("Couldn't read past 'IP'.");
-            }
+        if (matcher.matches() && matcher.group(2).charAt(0) == ' ') {
+            timeStamp = matcher.group(1);
+            String params = matcher.group(3);
+            parseIPParams(params);
         } else {
             ignore = true;
-            ipLine = line;
-//            throw new BadInputException("Line does not begin with time stamp.");
         }
     }
 
-    private void parseIPParams(String params) throws BadInputException {
+    private void parseIPParams(String params) {
         // tos 0x0, ttl 64, id 5999, offset 0, flags [DF], proto TCP (6), length 575
         Pattern p = Pattern.compile("tos ([^,]*), ttl ([0-9]+), id ([0-9]+), offset ([0-9]+), flags \\[(.*)\\], proto ([^ ]*) \\([0-9]+\\), length ([0-9]+)");
         Matcher m = p.matcher(params);
-        if (!m.matches()) {
-            throw new BadInputException("Failed to read IP params.");
+        if (m.matches()) {
+            ipTOS = m.group(1);
+            ipTTL = m.group(2);
+            ipID = m.group(3);
+            ipOFFSET = m.group(4);
+            ipFLAGS = m.group(5);
+            ipPROTOCOL = m.group(6);
+            ipLENGTH = m.group(7);
+        } else {
+            ignore = true;
         }
-        ipTOS = m.group(1);
-        ipTTL = m.group(2);
-        ipID = m.group(3);
-        ipOFFSET = m.group(4);
-        ipFLAGS = m.group(5);
-        ipPROTOCOL = m.group(6);
-        ipLENGTH = m.group(7);
     }
 
     public boolean isInitialized() {
-        return timeStamp != null;
+        return (timeStamp != null) || ignore;
     }
 
-    public void parseSecondaryLine(String line) throws BadInputException {
+    public void parseSecondaryLine(String line) {
         if (ignore) {
             secondaryLine = line;
         } else {
@@ -98,13 +84,13 @@ public class Packet {
                     parseUDPLine(line);
                     break;
                 default:
-                    System.out.println(ipPROTOCOL);
-                    throw new IllegalStateException("Protocol must have been set to TCP or UDP but it wasn't.");
+                    ignore = true;
+                    secondaryLine = line;
             }
         }
     }
 
-    private void parseTCPLine(String line) throws BadInputException {
+    private void parseTCPLine(String line) {
         //      2. 84. 36.148.51197 > 192.168.  0. 20. 6881: Flags [.],  cksum 0x3c43 (correct), ack 4121294785, win 30706, options [nop,nop,TS val 151940689 ecr 6631215], length 0
         //    103. 47.133. 65.37679 > 192.168.  0. 20.34965: Flags [R.], cksum 0x8082 (correct), seq 0,       ack 182279039, win 0, length 0
         //     41.249.197.208.63145 > 192.168.  0. 20. 4852: Flags [P.], cksum 0xacdf (correct), seq 246:284, ack 276,       win 229, options [nop,nop,TS val 1454965 ecr 6631861], length 38
@@ -115,7 +101,9 @@ public class Packet {
         // Parse addresses and ports
         Matcher addressMatcher = addresses.matcher(line);
         if (!addressMatcher.matches()) {
-            throw new BadInputException("Failed to parse TCP line");
+            ignore = true;
+            secondaryLine = line;
+            return;
         }
 
         srcIP = addressMatcher.group(1);
@@ -147,7 +135,7 @@ public class Packet {
         }
     }
 
-    private void parseUDPLine(String line) throws BadInputException {
+    private void parseUDPLine(String line) {
         Pattern addresses = Pattern.compile("    ([0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+)\\.([0-9]+) > ([0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+)\\.([0-9]+): UDP, length ([0-9]+)");
         Matcher m = addresses.matcher(line);
         if (m.matches()) {
@@ -174,13 +162,16 @@ public class Packet {
         if (ignore) {
             return ipLine + "\n" + secondaryLine + "\n" + other;
         } else {
-            String ip = String.format("IP: TOS %s; TTL %s; ID %s; OFFSET %s; FLAGS %s; PROTOCOL %s; LENGTH %s.", ipTOS, ipTTL, ipID, ipOFFSET, ipFLAGS, ipPROTOCOL, ipLENGTH);
-            String two = ipPROTOCOL + ": ";
-            two += String.format("%s:%s > %s:%s; ", srcIP, srcPort, dstIP, dstPort);
-            for (Map.Entry<String, String> entry : values.entrySet()) {
-                two += entry.getKey() + " " + entry.getValue() + "; ";
+            // schema
+            // ip                                      tcp
+            // protocol;tos;ttl;id;offset;flags;length;flags;cksum;seq;ack;win;options;tcpProtocol;tcpLength
+            // ip                                      udp
+            // protocol;tos;ttl;id;offset;flags;length;udpLength
+            String packet = String.format("%s;%s;%s;%s;%s;%s;%s;%s;%s;%s;%s;", ipPROTOCOL, ipTOS, ipTTL, ipID, ipOFFSET, ipFLAGS, ipLENGTH, srcIP, srcPort, dstIP, dstPort);
+            for (String value : values.values()) {
+                packet += value + ";";
             }
-            return ip + "\n" + two;
+            return packet.substring(0, packet.length() - 1);
         }
     }
 }
