@@ -42,7 +42,7 @@ public class TCPService extends Service {
         runtcp = new RunTCP();
         if (runtcp.ready) {
             try {
-                runtcp.openFile();
+                runtcp.openFiles();
             } catch (IOException e) {
                 // TODO Auto-generated catch block
                 e.printStackTrace();

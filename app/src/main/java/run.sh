@@ -1,4 +1,4 @@
 #!/usr/bin/env bash
 
-javac StupidTest.java
-java StupidTest
+javac NewStupidTest.java
+java NewStupidTest

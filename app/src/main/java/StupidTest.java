@@ -4,6 +4,8 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 
+import warden.Packet;
+
 public class StupidTest {
     private enum Line {
         PRIMARY, SECONDARY, TERTIARY, EMPTY
