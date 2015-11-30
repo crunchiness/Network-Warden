@@ -31,3 +31,5 @@ proguard/
 
 .idea/
 .gradle/
+
+Secrets.java

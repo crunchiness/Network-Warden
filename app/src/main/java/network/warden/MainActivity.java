@@ -11,13 +11,16 @@ import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import java.io.File;
+
+import javax.mail.MessagingException;
+
 import warden.R;
 
 
 public class MainActivity extends Activity {
 
     //public static RunTCP runtcp;
-    OnClickListener listenerStart = null;
     Button buttonStart;
     Button buttonStop;
     Button buttonSend;
@@ -63,13 +66,10 @@ public class MainActivity extends Activity {
         @Override
         public void onClick(View v) {
             System.out.println("pressed stop button");
-            //TextView logmsg = (TextView) findViewById(R.id.editText1);
 
             stopService(serviceIntent);
             buttonStart.setEnabled(true);
             buttonStop.setEnabled(false);
-            //Intent intent0 = new Intent(MainActivity.this, RunningTCP.class);
-            //startActivity(intent0);
         }
     }
 
@@ -80,43 +80,52 @@ public class MainActivity extends Activity {
             System.out.println("Sending Email");
 
             SendTask sTask = new SendTask();
-            sTask.execute();
+            String emailAddress = textbox.getText().toString();
+            sTask.execute(emailAddress);
         }
     }
 
-    //show massage on log text box
+    // email sending function
+    class SendTask extends AsyncTask<String, Integer, String> {
 
-    //email sending function
-    class SendTask extends AsyncTask<Integer, Integer, String> {
+        private boolean fileExists(String path) {
+            return (new File(path)).exists();
+        }
+
         @Override
         protected void onPreExecute() {
-            Toast.makeText(getApplicationContext(), "Begin Send!", Toast.LENGTH_SHORT).show();
             super.onPreExecute();
         }
 
         @Override
-        protected String doInBackground(Integer... params) {
-            Mail m = new Mail("ingvaras@gmail.com", "0urLov3is5ever!");     //username and password of email
+        protected String doInBackground(String... params) {
+            Mail m = new Mail(Secrets.senderEmail, Secrets.senderPassword);
 
-            CharSequence address = textbox.getText();
+            String address = (params[0].equals("")) ? "mail@ingvaras.com" : params[0];
 
-            String[] toArr = {address.toString()};
+            String[] toArr = {address};
             m.setTo(toArr);
-            m.setFrom("ingvaras@gmain.com");
+            m.setFrom(Secrets.senderEmail);
             m.setSubject("Network Traffic Log");
             m.setBody("Email body.");
 
-            try {
-                m.addAttachment("/data/local/Warden/log.txt");
-                m.addAttachment("/data/local/Warden/log1.txt");
-                m.addAttachment("/data/local/Warden/error.txt");
-                m.addAttachment("/data/local/Warden/fail.txt");
+            String[] attachments = {"log1.txt", "error.txt", "fail.txt"};
 
+            try {
+                for (String attachment : attachments) {
+                    String path = "/data/local/Warden/" + attachment;
+                    if (fileExists(path)) {
+                        m.addAttachment(path);
+                    } else {
+                        Log.e("Network Warden", "Attachment file doesn't exist: " + path);
+                    }
+                }
                 m.send();
-            } catch (Exception e) {
-                Log.e("MailApp", "Could not send email", e);
+            } catch (MessagingException e) {
+                Log.e("Network Warden", "Could not send email", e);
+                return "Could not send email";
             }
-            return "";
+            return "Email sent!";
         }
 
         @Override
@@ -125,12 +134,10 @@ public class MainActivity extends Activity {
         }
 
         @Override
-        protected void onPostExecute(String r) {
-            super.onPostExecute(r);
+        protected void onPostExecute(String result) {
+            Toast.makeText(getApplicationContext(), result, Toast.LENGTH_SHORT).show();
+            super.onPostExecute(result);
         }
 
     }
 }
-
-
-

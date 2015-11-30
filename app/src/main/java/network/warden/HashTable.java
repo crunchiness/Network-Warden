@@ -71,11 +71,11 @@ public class HashTable {
     public String getApp(Packet newpacket) {
 
 
-        double Time = newpacket.getTimeSec();
+        double time = newpacket.getTimeSec();
 
         //check table every 30s
-        if (Time - lastCheck > 30) {
-            CheckTable(Time);
+        if (time - lastCheck > 30) {
+            CheckTable(time);
         }
 
         String key = null;         // key of table
@@ -101,10 +101,9 @@ public class HashTable {
 
             // if the timeStamp difference between this query and last query is less than 50ms, and
             // their server ips are the same, directly return the result of last query
-            if (thisQueryTime < lastQueryTime) thisQueryTime += 60000; // TODO: wtf
             if (thisQueryTime - lastQueryTime < 0.050 && thisServer.equals(lastServer)) {
                 Port_PID.put(key, lastResult);
-                Port_Time.put(key, Time);
+                Port_Time.put(key, time);
                 lastQueryTime = thisQueryTime;
                 return lastResult;
             }
@@ -112,6 +111,7 @@ public class HashTable {
             try {
                 // run lsof
                 String commands = "/data/local/lsof +c 0 -i:" + localPort + " 2>/dev/null \n";
+                System.out.println(commands);
                 os.writeBytes(commands);
                 os.flush();
 
@@ -120,17 +120,15 @@ public class HashTable {
                 long tt1 = System.currentTimeMillis();
                 while (true) {
                     if (!input.ready()) {
-                        if (System.currentTimeMillis() - tt1 > 1000) {  //which means lsof dont get any result
+                        if (System.currentTimeMillis() - tt1 > 1000) {  // which means lsof didn't get any result
                             String er = "unknown";
                             Port_PID.put(key, er);
-                            Port_Time.put(key, Time);
+                            Port_Time.put(key, time);
                             return er;
-
                         } else {
                             continue;
                         }
                     }
-
                     if (i == 0) {
                         i++;
                         continue;
@@ -139,9 +137,8 @@ public class HashTable {
                         String[] temp = input.readLine().split(" ");
                         Name_PID = temp[0] + " " + temp[1];
                         Port_PID.put(key, Name_PID);
-                        Port_Time.put(key, Time);
+                        Port_Time.put(key, time);
                     }
-
                     if (!input.ready()) {
                         lastQueryTime = thisQueryTime;
                         lastServer = thisServer;
@@ -150,7 +147,7 @@ public class HashTable {
                     }
                 }
             } catch (IOException e) {
-                System.out.println(" lsof wrong");
+                System.out.println("lsof wrong");
                 e.printStackTrace();
                 return null;
             }
