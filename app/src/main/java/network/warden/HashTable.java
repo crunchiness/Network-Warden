@@ -1,4 +1,4 @@
-package warden;
+package network.warden;
 
 import java.io.BufferedReader;
 import java.io.DataOutputStream;
@@ -53,11 +53,9 @@ public class HashTable {
         }
         if (permission) {
             System.out.println("lsof got permission");
-            MainActivity.ShowMsg("lsof got permission");
             ready = true;
         } else {
             System.out.println("lsof cannot get permission");
-            MainActivity.ShowMsg("lsof cannot get permission");
             ready = false;
         }
 
@@ -66,7 +64,6 @@ public class HashTable {
         line = input.readLine();
         localIP = line.split(" ")[2];
         System.out.println("local IP is: " + localIP);
-        MainActivity.ShowMsg("local IP is: " + localIP);
     }
 
 

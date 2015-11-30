@@ -1,10 +1,12 @@
-package warden;
+package network.warden;
 
 import android.app.Activity;
 import android.os.Bundle;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.Button;
+
+import warden.R;
 
 public class RunningTCP extends Activity {
 

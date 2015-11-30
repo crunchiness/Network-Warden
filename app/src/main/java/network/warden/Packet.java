@@ -1,4 +1,4 @@
-package warden;
+package network.warden;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -25,6 +25,7 @@ public class Packet {
     private boolean ignore = false;
     private String ipLine;
     private String secondaryLine;
+    private String appName;
 
     public Packet(String line) {
         makePacket(line);
@@ -191,7 +192,7 @@ public class Packet {
             // protocol;tos;ttl;id;offset;flags;length;flags;cksum;seq;ack;win;options;tcpProtocol;tcpLength
             // ip                                      udp
             // protocol;tos;ttl;id;offset;flags;length;udpLength
-            String packet = String.format("%s;%s;%s;%s;%s;%s;%s;%s;%s;%s;%s;%s;", ipPROTOCOL, timeStamp, ipTOS, ipTTL, ipID, ipOFFSET, ipFLAGS, ipLENGTH, srcIP, srcPort, dstIP, dstPort);
+            String packet = String.format("%s;%s;%s;%s;%s;%s;%s;%s;%s;%s;%s;%s;%s;", appName, ipPROTOCOL, timeStamp, ipTOS, ipTTL, ipID, ipOFFSET, ipFLAGS, ipLENGTH, srcIP, srcPort, dstIP, dstPort);
             for (String value : values.values()) {
                 packet += value + ";";
             }
@@ -205,13 +206,17 @@ public class Packet {
 
     public double getTimeSec() {
         // 18:03:58.938770
-        Pattern p = Pattern.compile("([0-9]{2}):([0-9]{2}):([0-9]{3})\\.([0-9]+)");
+        Pattern p = Pattern.compile("([0-9]{2}):([0-9]{2}):([0-9]{2})\\.([0-9]+)");
         Matcher matcher = p.matcher(timeStamp);
-        double h = Double.parseDouble(matcher.group(1));
-        double m = Double.parseDouble(matcher.group(2));
-        double s = Double.parseDouble(matcher.group(3));
-        double etc = Double.parseDouble("0." + matcher.group(4));
-        return ((h * 60 + m) * 60 + s) + etc;
+        if (matcher.matches()) {
+            double h = Double.parseDouble(matcher.group(1));
+            double m = Double.parseDouble(matcher.group(2));
+            double s = Double.parseDouble(matcher.group(3));
+            double etc = Double.parseDouble("0." + matcher.group(4));
+            return ((h * 60 + m) * 60 + s) + etc;
+        } else {
+            return 0;
+        }
     }
 
     public String getSrcIP() {
@@ -232,5 +237,9 @@ public class Packet {
 
     public String getProtocol() {
         return ipPROTOCOL;
+    }
+
+    public void setApp(String appName) {
+        this.appName = appName;
     }
 }

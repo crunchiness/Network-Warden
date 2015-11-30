@@ -1,4 +1,4 @@
-package warden;
+package network.warden;
 
 import java.io.IOException;
 
@@ -25,7 +25,6 @@ public class TCPService extends Service {
     @Override
     public void onDestroy() {
         System.out.println("service destroyed");
-        MainActivity.ShowMsg("service destroyed");
         try {
             runtcp.destroyTCP();
         } catch (IOException e) {
@@ -50,7 +49,6 @@ public class TCPService extends Service {
             runtcp.start();
         } else {
             System.out.println("failed to start");
-            MainActivity.ShowMsg("failed to start");
         }
     }
 }

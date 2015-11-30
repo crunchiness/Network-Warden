@@ -1,18 +1,19 @@
-package warden;
+package network.warden;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.DataOutputStream;
 import java.io.File;
-import java.io.FileReader;
+//import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.util.HashMap;
-import java.util.Map;
+//import java.util.HashMap;
+//import java.util.Map;
 
 import android.widget.Button;
+
+import warden.R;
 
 public class RunTCP extends Thread {
 
@@ -20,17 +21,17 @@ public class RunTCP extends Thread {
         PRIMARY, SECONDARY, TERTIARY, EMPTY
     }
 
-    Process process;         // process running tcpdump
     boolean running;         // a flag. when it turns to "false", terminate tcpdump
-    HashTable hashTable;        // table
-    InputStreamReader ir;    // output stream of tcpdump  process
+    boolean ready;
     BufferedReader input;    // read output stream of tcpdump  process
-    DataOutputStream os;     // input stream of tcpdump  process
-    boolean ready;           // if tcpdump and lsof get permission, the value is true
     BufferedWriter bw;       // record writer
     BufferedWriter errorOutput;
     BufferedWriter failOutput;
-    static String localIP;
+    DataOutputStream os;     // input stream of tcpdump  process
+    HashTable hashTable;
+    InputStreamReader ir;    // output stream of tcpdump  process
+    Process process;         // process running tcpdump
+    String localIP;
 
     public RunTCP() {
         try {
@@ -93,6 +94,7 @@ public class RunTCP extends Thread {
             failOutput.write(packet.toString());
         } else {
             String detectedApp = ht.getApp(packet);
+            packet.setApp(detectedApp);
             output.write(packet.toString());
         }
     }
@@ -194,7 +196,6 @@ public class RunTCP extends Thread {
         } catch (IOException e) {
             // TODO Auto-generated catch block
             System.out.println("tcp wrong");
-            //MainActivity.ShowMsg("tcp wrong");
             e.printStackTrace();
         }
 
@@ -203,7 +204,7 @@ public class RunTCP extends Thread {
     public void destroyTCP() throws IOException {
         running = false;
         closeFile();
-        postprocess();
+//        postprocess();
         process.destroy();
     }
 
@@ -249,95 +250,87 @@ public class RunTCP extends Thread {
 
     //close log1.txt and get it readable
     public void closeFile() throws IOException {
-        bw.close();
-        errorOutput.close();
-        failOutput.close();
+        if (bw != null) {
+            bw.close();
+        }
+        if (errorOutput != null) {
+            errorOutput.close();
+        }
+        if (failOutput != null) {
+            failOutput.close();
+        }
 
         Runtime.getRuntime().exec("chmod 777 /data/local/Warden/log1.txt\n");
+        Runtime.getRuntime().exec("chmod 777 /data/local/Warden/error.txt\n");
+        Runtime.getRuntime().exec("chmod 777 /data/local/Warden/fail.txt\n");
     }
 
     // post-process. find associated process for non-SYN packet. Result is log.txt
-    public static void postprocess() throws IOException {
-        String filename = "/data/local/Warden/log1.txt";
-        String outputfile = "/data/local/Warden/log.txt";
-
-        String content = null;
-        File file = new File(filename); //for ex foo.txt
-        //if (file.exists()) System.out.println("exist");
-        try {
-            FileReader reader = new FileReader(file);
-            char[] chars = new char[(int) file.length()];
-            reader.read(chars);
-            content = new String(chars);
-            //System.out.println(content);
-            reader.close();
-        } catch (IOException e) {
-            System.out.print("Fail to read file");
-            e.printStackTrace();
-        }
-
-        String temp[] = content.split(";");
-        System.out.println(temp.length);
-        InputStream in = null;
-        BufferedReader reader = null;
-
-        File outputf = new File(outputfile);
-        if (outputf.exists()) {
-            outputf.delete();
-        }
-        outputf.createNewFile();
-
-        FileWriter fw;
-        BufferedWriter bw;
-        fw = new FileWriter(outputfile, true);
-        bw = new BufferedWriter(fw);
-
-        Map<String, String> portproc = new HashMap<>();
-
-        try {
-            reader = new BufferedReader(new FileReader(file));
-            String tempString;
-
-            for (int z = 0; z < temp.length - 1; z++) {
-                tempString = temp[z];
-
-                String inf[] = tempString.split(" +");
-                String port;
-                String proc;
-                if (inf[1].equals(localIP)) port = inf[2];
-                else port = inf[4];
-
-                if (inf[6].equals("UDP")) {
-                    bw.write(tempString + "\n");
-                    bw.flush();
-                } else if (inf.length > 8) {
-                    proc = inf[8];
-                    portproc.put(port, proc);
-                    bw.write(tempString + "\n");
-                    bw.flush();
-                } else {
-                    if (portproc.containsKey(port)) {
-                        proc = portproc.get(port);
-                    } else {
-                        proc = "cannot find syn packet";
-                    }
-                    bw.write(tempString + " " + proc + "\n");
-                    bw.flush();
-                }
-            }
-            reader.close();
-
-            bw.close();
-            fw.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        } finally {
-            if (reader != null) {
-                try {
-                    reader.close();
-                } catch (IOException e1) {
-                }
-            }
-        }
-    }
+//    public static void postprocess() throws IOException {
+//        String filename = "/data/local/Warden/log1.txt";
+//        String outputFile = "/data/local/Warden/log.txt";
+//
+//        File file = new File(filename); //for ex foo.txt
+//
+//        BufferedReader reader = null;
+//
+//        File outputf = new File(outputFile);
+//        if (outputf.exists()) {
+//            outputf.delete();
+//        }
+//        outputf.createNewFile();
+//
+//
+//        BufferedWriter bw;
+//
+//        bw = new BufferedWriter(new FileWriter(outputFile, true));
+//
+//        Map<String, String> portproc = new HashMap<>();
+//
+//        try {
+//            reader = new BufferedReader(new FileReader(file));
+//            String tempString;
+//
+//            for (int z = 0; z < temp.length - 1; z++) { // for each packet
+//                tempString = temp[z];
+//
+//                String inf[] = tempString.split(" +");
+//                String port;
+//                String proc;
+//                if (inf[1].equals(localIP)) {
+//                    port = inf[2];
+//                } else {
+//                    port = inf[4];
+//                }
+//
+//                if (inf[6].equals("UDP")) {             // write if UDP
+//                    bw.write(tempString + "\n");
+//                    bw.flush();
+//                } else if (inf.length > 8) {            // else if app identified save port-process mapping
+//                    proc = inf[8];
+//                    portproc.put(port, proc);
+//                    bw.write(tempString + "\n");
+//                    bw.flush();
+//                } else {                                // else try to retrieve app from port-process mapping
+//                    if (portproc.containsKey(port)) {
+//                        proc = portproc.get(port);
+//                    } else {
+//                        proc = "cannot find syn packet";
+//                    }
+//                    bw.write(tempString + " " + proc + "\n");
+//                    bw.flush();
+//                }
+//            }
+//            reader.close();
+//
+//            bw.close();
+//
+//        } catch (IOException e) {
+//            e.printStackTrace();
+//        } finally {
+//            if (reader != null) {
+//                reader.close();
+//            }
+//        }
+//    }
 }
