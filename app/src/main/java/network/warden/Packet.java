@@ -60,7 +60,15 @@ public class Packet {
 
 
     private void makePacket(String protocol, String srcIp, String srcPort, String dstIp, String dstPort, String length, String time, String tcpFlags) {
-        // TODO
+        this.ipPROTOCOL = protocol;
+        this.srcIP = srcIp;
+        this.srcPort = srcPort;
+        this.dstIP = dstIp;
+        this.dstPort = dstPort;
+        this.ipLENGTH = length;
+        this.timeStamp = time;
+        this.ipFLAGS = tcpFlags;
+        values.put("flags", tcpFlags);
     }
 
     private void parseIPParams(String params) {

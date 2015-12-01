@@ -1,17 +1,20 @@
 package network.warden;
 
+import android.util.Pair;
+
 import java.io.BufferedReader;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 public class HashTable {
-    Map<String, String> Port_PID;
-    Map<String, Double> Port_Time;
+    Map<String, Pair<String,Double>> portMap;
     String localIP;
     Process process;              //lsof process
     DataOutputStream os;          //input stream of lsof process
@@ -35,8 +38,7 @@ public class HashTable {
         lastQueryTime = 0;
         lastCheck = 0;
 
-        Port_PID = new HashMap<>();
-        Port_Time = new HashMap<>();
+        portMap = new HashMap<>();
         process = Runtime.getRuntime().exec("su");        //get root permission
 
         os = new DataOutputStream(process.getOutputStream());
@@ -52,10 +54,10 @@ public class HashTable {
             if (!input.ready()) break;
         }
         if (permission) {
-            System.out.println("lsof got permission");
+            System.out.println("got permission");
             ready = true;
         } else {
-            System.out.println("lsof cannot get permission");
+            System.out.println("cannot get permission");
             ready = false;
         }
 
@@ -94,16 +96,15 @@ public class HashTable {
             key = newpacket.getDstIP() + newpacket.getDstPort() + newpacket.getSrcIP() + newpacket.getSrcPort() + newpacket.getProtocol();
         }
 
-        if (Port_PID.containsKey(key)) {
-            return Port_PID.get(key);
+        if (portMap.containsKey(key)) {
+            return portMap.get(key).first;
         } else {
             thisQueryTime = newpacket.getTimeSec();
 
             // if the timeStamp difference between this query and last query is less than 50ms, and
             // their server ips are the same, directly return the result of last query
             if (thisQueryTime - lastQueryTime < 0.050 && thisServer.equals(lastServer)) {
-                Port_PID.put(key, lastResult);
-                Port_Time.put(key, time);
+                portMap.put(key, new Pair<>(lastResult, time));
                 lastQueryTime = thisQueryTime;
                 return lastResult;
             }
@@ -119,31 +120,26 @@ public class HashTable {
                 String Name_PID = "";
                 long tt1 = System.currentTimeMillis();
                 while (true) {
-                    if (!input.ready()) {
+                    if (input.ready()) {
+                        String line = input.readLine();
+                        if (i == 1) {
+                            String[] temp = line.split(" ");
+                            Name_PID = temp[0] + " " + temp[1];
+                            portMap.put(key, new Pair<>(Name_PID, time));
+                        }
+                        if (!input.ready()) {
+                            lastQueryTime = thisQueryTime;
+                            lastServer = thisServer;
+                            lastResult = Name_PID;
+                            return Name_PID;
+                        }
+                        i++;
+                    } else {
                         if (System.currentTimeMillis() - tt1 > 1000) {  // which means lsof didn't get any result
                             String er = "unknown";
-                            Port_PID.put(key, er);
-                            Port_Time.put(key, time);
+                            portMap.put(key, new Pair<>(er, time));
                             return er;
-                        } else {
-                            continue;
                         }
-                    }
-                    if (i == 0) {
-                        i++;
-                        continue;
-                    } else if (i == 1) {
-                        i++;
-                        String[] temp = input.readLine().split(" ");
-                        Name_PID = temp[0] + " " + temp[1];
-                        Port_PID.put(key, Name_PID);
-                        Port_Time.put(key, time);
-                    }
-                    if (!input.ready()) {
-                        lastQueryTime = thisQueryTime;
-                        lastServer = thisServer;
-                        lastResult = Name_PID;
-                        return Name_PID;
                     }
                 }
             } catch (IOException e) {
@@ -155,20 +151,15 @@ public class HashTable {
 
     }
 
-    //check table, remove entries which haven't used in last 30s.
-    public void CheckTable(double Time) {
-        Set<String> key = Port_PID.keySet();
-        Set<String> r = new HashSet<>();
-        for (String k : key) {
-            if (Time - Port_Time.get(k) > 30) {
-                r.add(k);
+    // check table, remove entries which haven't used in last 30s
+    public void CheckTable(double time) {
+        Set<String> keys = new HashSet<>();
+        keys.addAll(portMap.keySet());
+        for (String key : keys) {
+            if (time - portMap.get(key).second > 30) {
+                portMap.remove(key);
             }
         }
-
-        for (String k : r) {
-            Port_PID.remove(k);
-            Port_Time.remove(k);
-        }
-        lastCheck = Time;
+        lastCheck = time;
     }
 }

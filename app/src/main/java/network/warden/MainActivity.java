@@ -101,7 +101,7 @@ public class MainActivity extends Activity {
         protected String doInBackground(String... params) {
             Mail m = new Mail(Secrets.senderEmail, Secrets.senderPassword);
 
-            String address = (params[0].equals("")) ? "mail@ingvaras.com" : params[0];
+            String address = (params[0].equals("")) ? "ingvaras@gmail.com" : params[0];
 
             String[] toArr = {address};
             m.setTo(toArr);

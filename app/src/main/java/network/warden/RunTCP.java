@@ -11,10 +11,6 @@ import java.io.InputStreamReader;
 //import java.util.HashMap;
 //import java.util.Map;
 
-import android.widget.Button;
-
-import warden.R;
-
 public class RunTCP extends Thread {
 
     private enum Line {
@@ -122,7 +118,7 @@ public class RunTCP extends Thread {
                     }
                 } else {
                     String line = input.readLine();
-                    System.out.println(line);
+
                     if (firstLine) {
                         firstLine = false;
                         continue;
@@ -204,8 +200,9 @@ public class RunTCP extends Thread {
     public void destroyTCP() throws IOException {
         running = false;
         closeFile();
-//        postprocess();
-        process.destroy();
+        if (process != null) {
+            process.destroy();
+        }
     }
 
     //open log1.txt
@@ -214,41 +211,33 @@ public class RunTCP extends Thread {
         if (!folder.exists() || !folder.isDirectory()) {
             folder.mkdir();
         }
-        File writeFile = new File("/data/local/Warden/log1.txt");
-        File errorFile = new File("/data/local/Warden/error.txt");
-        File failFile = new File("/data/local/Warden/fail.txt");
-
-        try {
-            if (writeFile.exists()) {
-                writeFile.delete();
-            }
-            if (errorFile.exists()) {
-                errorFile.delete();
-            }
-            if (failFile.exists()) {
-                failFile.delete();
-            }
-            writeFile.createNewFile();
-            errorFile.createNewFile();
-            failFile.createNewFile();
-            System.out.println("log file created");
-        } catch (Exception e) {
-            System.out.println("failed to create file");
-        }
-
-        Button buttonStart = findViewById(R.id.button1);
+//        File writeFile = new File("/data/local/Warden/log1.txt");
+//        File errorFile = new File("/data/local/Warden/error.txt");
+//        File failFile = new File("/data/local/Warden/fail.txt");
+//
+//        try {
+//            if (writeFile.exists()) {
+//                writeFile.delete();
+//            }
+//            if (errorFile.exists()) {
+//                errorFile.delete();
+//            }
+//            if (failFile.exists()) {
+//                failFile.delete();
+//            }
+//            writeFile.createNewFile();
+//            errorFile.createNewFile();
+//            failFile.createNewFile();
+//            System.out.println("log file created");
+//        } catch (Exception e) {
+//            System.out.println("failed to create file");
+//        }
 
         bw = new BufferedWriter(new FileWriter("/data/local/Warden/log1.txt", true));
         errorOutput = new BufferedWriter(new FileWriter("/data/local/Warden/error.txt", true));
         failOutput = new BufferedWriter(new FileWriter("/data/local/Warden/fail.txt", true));
     }
 
-    private Button findViewById(int button1) {
-        // TODO Auto-generated method stub
-        return null;
-    }
-
-    //close log1.txt and get it readable
     public void closeFile() throws IOException {
         if (bw != null) {
             bw.close();
