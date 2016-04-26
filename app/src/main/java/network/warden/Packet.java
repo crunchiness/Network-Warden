@@ -250,4 +250,8 @@ public class Packet {
     public void setApp(String appName) {
         this.appName = appName;
     }
+
+    public String getApp() {
+        return appName;
+    }
 }

@@ -90,8 +90,11 @@ public class RunTCP extends Thread {
             failOutput.write(packet.toString());
         } else {
             String detectedApp = ht.getApp(packet);
-            packet.setApp(detectedApp);
-            output.write(packet.toString());
+//            if (!detectedApp.startsWith("network.warden") && !detectedApp.equals("unknown")) {
+            if (detectedApp.startsWith("android.youtube")) {
+                packet.setApp(detectedApp);
+                output.write(packet.toString());
+            }
         }
     }
 
